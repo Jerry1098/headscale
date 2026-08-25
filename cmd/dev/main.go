@@ -283,8 +283,9 @@ func runHS(ctx context.Context, bin, config string, args ...string) ([]byte, err
 // extractUserID parses the JSON output of "users create" and returns the
 // user ID.
 func extractUserID(data []byte) (uint64, error) {
+	// The API serialises uint64 IDs as JSON strings.
 	var user struct {
-		ID uint64 `json:"id"`
+		ID uint64 `json:"id,string"`
 	}
 
 	err := json.Unmarshal(data, &user)

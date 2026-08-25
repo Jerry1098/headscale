@@ -121,6 +121,8 @@ CREATE TABLE nodes(
   last_seen datetime,
   expiry datetime,
   approved_routes text,
+  node_key_signature blob,
+  nl_key text,
 
   created_at datetime,
   updated_at datetime,
@@ -139,6 +141,16 @@ CREATE TABLE policies(
   deleted_at datetime
 );
 CREATE INDEX idx_policies_deleted_at ON policies(deleted_at);
+
+CREATE TABLE tka_states(
+  id integer PRIMARY KEY AUTOINCREMENT,
+  au_ms text,
+  last_active_ancestor text,
+  disablement_secret blob,
+
+  created_at datetime,
+  updated_at datetime
+);
 
 CREATE TABLE database_versions(
   id integer PRIMARY KEY,

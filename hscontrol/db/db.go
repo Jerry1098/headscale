@@ -927,6 +927,59 @@ WHERE tags IS NOT NULL AND tags != '[]' AND tags != '' AND tags != 'null'
 				},
 				Rollback: func(db *gorm.DB) error { return nil },
 			},
+			{
+				// Tailnet Lock state: the AUM chain plus, once disabled, the
+				// disablement secret. Single row, ID 1.
+				//
+				// SQLite uses explicit DDL matching schema.sql byte-for-byte
+				// (the squibble digest is the SQLite source of truth). Postgres
+				// uses AutoMigrate, mirroring InitSchema.
+				ID: "202608251200-tka-state",
+				Migrate: func(tx *gorm.DB) error {
+					if tx.Migrator().HasTable(&types.TKAState{}) {
+						return nil
+					}
+
+					if tx.Name() != "sqlite" {
+						return tx.AutoMigrate(&types.TKAState{})
+					}
+
+					err := tx.Exec(`CREATE TABLE tka_states(
+  id integer PRIMARY KEY AUTOINCREMENT,
+  au_ms text,
+  last_active_ancestor text,
+  disablement_secret blob,
+  created_at datetime,
+  updated_at datetime
+)`).Error
+					if err != nil {
+						return fmt.Errorf("creating tka_states table: %w", err)
+					}
+
+					return nil
+				},
+				Rollback: func(db *gorm.DB) error { return nil },
+			},
+			{
+				// Tailnet Lock: a node's node-key signature and its own
+				// Tailnet Lock public key.
+				ID: "202608251201-node-tailnet-lock-columns",
+				Migrate: func(tx *gorm.DB) error {
+					for _, col := range []string{"node_key_signature", "nl_key"} {
+						if tx.Migrator().HasColumn(&types.Node{}, col) {
+							continue
+						}
+
+						err := tx.Migrator().AddColumn(&types.Node{}, col)
+						if err != nil {
+							return fmt.Errorf("adding %s to nodes: %w", col, err)
+						}
+					}
+
+					return nil
+				},
+				Rollback: func(db *gorm.DB) error { return nil },
+			},
 		},
 	)
 
@@ -940,6 +993,7 @@ WHERE tags IS NOT NULL AND tags != '[]' AND tags != '' AND tags != 'null'
 			&types.Policy{},
 			&types.OAuthClient{},
 			&types.OAuthAccessToken{},
+			&types.TKAState{},
 		)
 		if err != nil {
 			return err

@@ -13,6 +13,7 @@ import (
 	"gorm.io/gorm"
 	"tailscale.com/tailcfg"
 	"tailscale.com/types/key"
+	"tailscale.com/types/tkatype"
 )
 
 // Clone makes a deep copy of User.
@@ -71,6 +72,7 @@ func (src *Node) Clone() *Node {
 		dst.LastSeen = new(*src.LastSeen)
 	}
 	dst.ApprovedRoutes = append(src.ApprovedRoutes[:0:0], src.ApprovedRoutes...)
+	dst.NodeKeySignature = append(src.NodeKeySignature[:0:0], src.NodeKeySignature...)
 	if dst.DeletedAt != nil {
 		dst.DeletedAt = new(*src.DeletedAt)
 	}
@@ -82,32 +84,34 @@ func (src *Node) Clone() *Node {
 
 // A compilation failure here means this code must be regenerated, with the command at the top of this file.
 var _NodeCloneNeedsRegeneration = Node(struct {
-	ID             NodeID
-	MachineKey     key.MachinePublic
-	NodeKey        key.NodePublic
-	DiscoKey       key.DiscoPublic
-	Endpoints      AddrPorts
-	Hostinfo       *tailcfg.Hostinfo
-	IPv4           *netip.Addr
-	IPv6           *netip.Addr
-	Hostname       string
-	GivenName      string
-	UserID         *uint
-	User           *User
-	RegisterMethod string
-	Tags           Strings
-	AuthKeyID      *uint64
-	AuthKey        *PreAuthKey
-	Expiry         *time.Time
-	LastSeen       *time.Time
-	ApprovedRoutes Prefixes
-	CreatedAt      time.Time
-	UpdatedAt      time.Time
-	DeletedAt      *time.Time
-	IsOnline       *bool
-	Unhealthy      bool
-	ActiveSessions int
-	SessionEpoch   uint64
+	ID               NodeID
+	MachineKey       key.MachinePublic
+	NodeKey          key.NodePublic
+	DiscoKey         key.DiscoPublic
+	Endpoints        AddrPorts
+	Hostinfo         *tailcfg.Hostinfo
+	IPv4             *netip.Addr
+	IPv6             *netip.Addr
+	Hostname         string
+	GivenName        string
+	UserID           *uint
+	User             *User
+	RegisterMethod   string
+	Tags             Strings
+	AuthKeyID        *uint64
+	AuthKey          *PreAuthKey
+	Expiry           *time.Time
+	LastSeen         *time.Time
+	ApprovedRoutes   Prefixes
+	NodeKeySignature tkatype.MarshaledSignature
+	NLKey            key.NLPublic
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
+	DeletedAt        *time.Time
+	IsOnline         *bool
+	Unhealthy        bool
+	ActiveSessions   int
+	SessionEpoch     uint64
 }{})
 
 // Clone makes a deep copy of PreAuthKey.

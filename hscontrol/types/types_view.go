@@ -17,6 +17,7 @@ import (
 	"gorm.io/gorm"
 	"tailscale.com/tailcfg"
 	"tailscale.com/types/key"
+	"tailscale.com/types/tkatype"
 	"tailscale.com/types/views"
 )
 
@@ -252,6 +253,18 @@ func (v NodeView) LastSeen() views.ValuePointer[time.Time] {
 func (v NodeView) ApprovedRoutes() views.Slice[netip.Prefix] {
 	return views.SliceOf(v.ж.ApprovedRoutes)
 }
+
+// NodeKeySignature is the Tailnet Lock signature over NodeKey, submitted
+// by a node holding a trusted Tailnet Lock key. Empty when the tailnet has
+// no lock, or when this node has not been signed yet.
+func (v NodeView) NodeKeySignature() views.ByteSlice[tkatype.MarshaledSignature] {
+	return views.ByteSliceOf(v.ж.NodeKeySignature)
+}
+
+// NLKey is the node's own Tailnet Lock public key, from
+// [tailcfg.RegisterRequest.NLKey]. Served as TKASignInfo.RotationPubkey so
+// the node can re-sign its own key after rotation.
+func (v NodeView) NLKey() key.NLPublic  { return v.ж.NLKey }
 func (v NodeView) CreatedAt() time.Time { return v.ж.CreatedAt }
 func (v NodeView) UpdatedAt() time.Time { return v.ж.UpdatedAt }
 func (v NodeView) DeletedAt() views.ValuePointer[time.Time] {
@@ -284,32 +297,34 @@ func (v NodeView) String() string       { return v.ж.String() }
 
 // A compilation failure here means this code must be regenerated, with the command at the top of this file.
 var _NodeViewNeedsRegeneration = Node(struct {
-	ID             NodeID
-	MachineKey     key.MachinePublic
-	NodeKey        key.NodePublic
-	DiscoKey       key.DiscoPublic
-	Endpoints      AddrPorts
-	Hostinfo       *tailcfg.Hostinfo
-	IPv4           *netip.Addr
-	IPv6           *netip.Addr
-	Hostname       string
-	GivenName      string
-	UserID         *uint
-	User           *User
-	RegisterMethod string
-	Tags           Strings
-	AuthKeyID      *uint64
-	AuthKey        *PreAuthKey
-	Expiry         *time.Time
-	LastSeen       *time.Time
-	ApprovedRoutes Prefixes
-	CreatedAt      time.Time
-	UpdatedAt      time.Time
-	DeletedAt      *time.Time
-	IsOnline       *bool
-	Unhealthy      bool
-	ActiveSessions int
-	SessionEpoch   uint64
+	ID               NodeID
+	MachineKey       key.MachinePublic
+	NodeKey          key.NodePublic
+	DiscoKey         key.DiscoPublic
+	Endpoints        AddrPorts
+	Hostinfo         *tailcfg.Hostinfo
+	IPv4             *netip.Addr
+	IPv6             *netip.Addr
+	Hostname         string
+	GivenName        string
+	UserID           *uint
+	User             *User
+	RegisterMethod   string
+	Tags             Strings
+	AuthKeyID        *uint64
+	AuthKey          *PreAuthKey
+	Expiry           *time.Time
+	LastSeen         *time.Time
+	ApprovedRoutes   Prefixes
+	NodeKeySignature tkatype.MarshaledSignature
+	NLKey            key.NLPublic
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
+	DeletedAt        *time.Time
+	IsOnline         *bool
+	Unhealthy        bool
+	ActiveSessions   int
+	SessionEpoch     uint64
 }{})
 
 // View returns a read-only view of PreAuthKey.

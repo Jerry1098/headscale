@@ -18,6 +18,7 @@ import (
 	"tailscale.com/net/tsaddr"
 	"tailscale.com/tailcfg"
 	"tailscale.com/types/key"
+	"tailscale.com/types/tkatype"
 	"tailscale.com/types/views"
 	"tailscale.com/util/dnsname"
 )
@@ -175,6 +176,16 @@ type Node struct {
 	// announces at the moment.
 	// See [Node.Hostinfo]
 	ApprovedRoutes Prefixes `gorm:"column:approved_routes;serializer:json"`
+
+	// NodeKeySignature is the Tailnet Lock signature over NodeKey, submitted
+	// by a node holding a trusted Tailnet Lock key. Empty when the tailnet has
+	// no lock, or when this node has not been signed yet.
+	NodeKeySignature tkatype.MarshaledSignature `gorm:"column:node_key_signature"`
+
+	// NLKey is the node's own Tailnet Lock public key, from
+	// [tailcfg.RegisterRequest.NLKey]. Served as TKASignInfo.RotationPubkey so
+	// the node can re-sign its own key after rotation.
+	NLKey key.NLPublic `gorm:"column:nl_key;serializer:text"`
 
 	CreatedAt time.Time
 	UpdatedAt time.Time
@@ -1208,6 +1219,10 @@ func (nv NodeView) TailNode(
 		capMap[tailcfg.CapabilityFileSharing] = []tailcfg.RawMessage{}
 	}
 
+	if cfg.TailnetLock.Enabled {
+		capMap[tailcfg.CapabilityTailnetLock] = []tailcfg.RawMessage{}
+	}
+
 	// default-auto-update is always emitted; the value is a JSON bool
 	// reflecting cfg.AutoUpdate.Enabled. Clients read this on first
 	// netmap and store the default locally; subsequent control-plane
@@ -1250,6 +1265,8 @@ func (nv NodeView) TailNode(
 		Online: nv.IsOnline().Clone(),
 
 		Tags: nv.Tags().AsSlice(),
+
+		KeySignature: nv.NodeKeySignature().AsSlice(),
 
 		MachineAuthorized: !nv.IsExpired(),
 		Expired:           nv.IsExpired(),

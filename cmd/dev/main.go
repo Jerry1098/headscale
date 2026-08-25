@@ -70,6 +70,9 @@ log:
 policy:
   mode: database
 
+tailnet_lock:
+  enabled: true
+
 unix_socket: %s/headscale.sock
 unix_socket_permission: "0770"
 `

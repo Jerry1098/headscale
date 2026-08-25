@@ -13,6 +13,7 @@ import (
 	"tailscale.com/net/tsaddr"
 	"tailscale.com/tailcfg"
 	"tailscale.com/types/key"
+	"tailscale.com/types/tkatype"
 )
 
 func TestTailNode(t *testing.T) {
@@ -516,5 +517,65 @@ func TestNodeExpiry(t *testing.T) {
 				t.Errorf("nodeExpiry() = %v, want %v", deseri.KeyExpiry, tt.wantTime)
 			}
 		})
+	}
+}
+
+func TestTailNodeCarriesKeySignature(t *testing.T) {
+	t.Parallel()
+
+	sig := tkatype.MarshaledSignature{0x01, 0x02, 0x03}
+
+	node := &types.Node{
+		GivenName:        "signed-node",
+		Hostinfo:         &tailcfg.Hostinfo{},
+		NodeKeySignature: sig,
+	}
+
+	got, err := node.View().TailNode(
+		0,
+		func(types.NodeID) []netip.Prefix { return nil },
+		&types.Config{},
+		nil,
+	)
+	if err != nil {
+		t.Fatalf("TailNode: %v", err)
+	}
+
+	if diff := cmp.Diff([]byte(sig), []byte(got.KeySignature)); diff != "" {
+		t.Errorf("KeySignature mismatch (-want +got):\n%s", diff)
+	}
+}
+
+func TestTailNodeTailnetLockCapability(t *testing.T) {
+	t.Parallel()
+
+	node := &types.Node{GivenName: "lock-node", Hostinfo: &tailcfg.Hostinfo{}}
+
+	off, err := node.View().TailNode(
+		0,
+		func(types.NodeID) []netip.Prefix { return nil },
+		&types.Config{},
+		nil,
+	)
+	if err != nil {
+		t.Fatalf("TailNode: %v", err)
+	}
+
+	if _, ok := off.CapMap[tailcfg.CapabilityTailnetLock]; ok {
+		t.Error("lock capability must be withheld when the feature is off")
+	}
+
+	on, err := node.View().TailNode(
+		0,
+		func(types.NodeID) []netip.Prefix { return nil },
+		&types.Config{TailnetLock: types.TailnetLockConfig{Enabled: true}},
+		nil,
+	)
+	if err != nil {
+		t.Fatalf("TailNode: %v", err)
+	}
+
+	if _, ok := on.CapMap[tailcfg.CapabilityTailnetLock]; !ok {
+		t.Error("lock capability must be emitted when the feature is on")
 	}
 }

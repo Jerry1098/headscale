@@ -385,6 +385,7 @@ jobs:
           - TestTaggedNodeLogoutReloginReusableKeyOnline
           - TestTagsOIDCReauthAddOwnedTag
           - TestTagsReauthEmptyTagsReturnsToUserSurvives
+          - TestTailnetLock
           - TestTS2021WebSocketGET
           - TestTS2021WASMClientUnderNode
           - TestTailscaleRustAxum

@@ -451,6 +451,21 @@ taildrop:
   # node's CapMap.
   enabled: true
 
+# Tailnet Lock (https://tailscale.com/docs/features/tailnet-lock). When enabled,
+# headscale emits `https://tailscale.com/cap/tailnet-lock` on every node's
+# CapMap, which is what lets `tailscale lock init` run and what makes each node
+# enforce peer node-key signatures.
+#
+# This is all-or-nothing on purpose: a node that does not receive the capability
+# never enters the lock and never enforces signatures, so enabling it for only
+# some nodes leaves a silent hole rather than partial protection.
+#
+# Headscale relays Tailnet Lock; it never holds a Tailnet Lock key. If every
+# trusted key is lost, the only recovery is `tailscale lock local-disable` on
+# each node — headscale cannot override the lock.
+tailnet_lock:
+  enabled: false
+
 # Default node auto-update behaviour. When enabled, every node's
 # CapMap carries `default-auto-update: [true]` so clients that have
 # not made a local opt-in / opt-out choice run auto-updates by

@@ -143,9 +143,10 @@ type Config struct {
 
 	OIDC OIDCConfig
 
-	LogTail    LogTailConfig
-	Taildrop   TaildropConfig
-	AutoUpdate AutoUpdateConfig
+	LogTail     LogTailConfig
+	Taildrop    TaildropConfig
+	TailnetLock TailnetLockConfig
+	AutoUpdate  AutoUpdateConfig
 
 	CLI CLIConfig
 
@@ -264,6 +265,16 @@ type LogTailConfig struct {
 }
 
 type TaildropConfig struct {
+	Enabled bool
+}
+
+// TailnetLockConfig gates Tailnet Lock tailnet-wide. When enabled, headscale
+// emits [tailcfg.CapabilityTailnetLock] on every node's CapMap.
+//
+// It is all-or-nothing by necessity: a node without the capability never
+// bootstraps into the lock and never enforces peer signatures, so a partial
+// rollout is a silent hole rather than a partial protection.
+type TailnetLockConfig struct {
 	Enabled bool
 }
 
@@ -477,6 +488,7 @@ func LoadConfig(path string, isFile bool) error {
 
 	viper.SetDefault("logtail.enabled", false)
 	viper.SetDefault("taildrop.enabled", true)
+	viper.SetDefault("tailnet_lock.enabled", false)
 	viper.SetDefault("auto_update.enabled", false)
 
 	viper.SetDefault("node.expiry", "0")
@@ -1285,6 +1297,9 @@ func LoadServerConfig() (*Config, error) {
 		LogTail: logTailConfig,
 		Taildrop: TaildropConfig{
 			Enabled: viper.GetBool("taildrop.enabled"),
+		},
+		TailnetLock: TailnetLockConfig{
+			Enabled: viper.GetBool("tailnet_lock.enabled"),
 		},
 		AutoUpdate: AutoUpdateConfig{
 			Enabled: viper.GetBool("auto_update.enabled"),

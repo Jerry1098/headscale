@@ -313,6 +313,8 @@ func createGoTestContainer(ctx context.Context, cli *client.Client, config *RunC
 		AutoRemove: false, // We'll remove manually for better control
 		Binds:      binds,
 		Mounts:     mounts,
+		// SELinux hosts deny container_t access to the repo bind and docker.sock.
+		SecurityOpt: []string{"label=disable"},
 	}
 
 	return cli.ContainerCreate(ctx, containerConfig, hostConfig, nil, nil, containerName)

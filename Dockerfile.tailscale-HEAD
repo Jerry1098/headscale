@@ -30,6 +30,9 @@ ARG TARGETARCH
 
 ARG BUILD_TAGS=""
 
+# tailscale HEAD outruns the pinned golang image; let go fetch its toolchain.
+ENV GOTOOLCHAIN=auto
+
 RUN GOARCH=$TARGETARCH go install -tags="${BUILD_TAGS}" -ldflags="\
       -X tailscale.com/version.longStamp=$VERSION_LONG \
       -X tailscale.com/version.shortStamp=$VERSION_SHORT \

@@ -171,6 +171,15 @@ func (b *MapResponseBuilder) WithSSHPolicy() *MapResponseBuilder {
 	return b
 }
 
+// WithTKAInfo adds Tailnet Lock state to the response. A nil TKAInfo means "no
+// change" to a client mid-session, so this is only omitted when the tailnet has
+// never enabled Tailnet Lock.
+func (b *MapResponseBuilder) WithTKAInfo() *MapResponseBuilder {
+	b.resp.TKAInfo = b.mapper.state.TKAInfo()
+
+	return b
+}
+
 // WithDNSConfig adds DNS configuration for the requesting node.
 func (b *MapResponseBuilder) WithDNSConfig() *MapResponseBuilder {
 	node, ok := b.node()

@@ -411,6 +411,7 @@ func TestChange_Constructors(t *testing.T) {
 				IncludeDNS:     true,
 				IncludeDomain:  true,
 				IncludePolicy:  true,
+				IncludeTKA:     true,
 				SendAllPeers:   true,
 			},
 		},

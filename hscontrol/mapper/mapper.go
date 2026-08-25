@@ -271,6 +271,7 @@ func (m *mapper) fullMapResponse(
 		WithDebugType(fullResponseDebug).
 		WithCapabilityVersion(capVer).
 		WithSelfNode().
+		WithTKAInfo().
 		WithDERPMap().
 		WithDomain().
 		WithCollectServicesDisabled().
@@ -291,6 +292,7 @@ func (m *mapper) selfMapResponse(
 		WithDebugType(selfResponseDebug).
 		WithCapabilityVersion(capVer).
 		WithSelfNode().
+		WithTKAInfo().
 		Build()
 	if err != nil {
 		return nil, err
@@ -328,6 +330,7 @@ func (m *mapper) policyChangeResponse(
 	removedPeers []tailcfg.NodeID,
 	currentPeers views.Slice[types.NodeView],
 	includeSelf bool,
+	includeTKA bool,
 ) (*tailcfg.MapResponse, error) {
 	builder := m.NewMapResponseBuilder(nodeID).
 		WithDebugType(policyResponseDebug).
@@ -335,6 +338,10 @@ func (m *mapper) policyChangeResponse(
 		WithDNSConfig().
 		WithPacketFilters().
 		WithSSHPolicy()
+
+	if includeTKA {
+		builder = builder.WithTKAInfo()
+	}
 
 	if includeSelf {
 		builder = builder.WithSelfNode()
@@ -402,6 +409,10 @@ func (m *mapper) buildFromChange(
 	if resp.IncludePolicy {
 		builder.WithPacketFilters()
 		builder.WithSSHPolicy()
+	}
+
+	if resp.IncludeTKA {
+		builder.WithTKAInfo()
 	}
 
 	if resp.SendAllPeers {

@@ -32,6 +32,7 @@ type Change struct {
 	IncludeDNS     bool
 	IncludeDomain  bool
 	IncludePolicy  bool // [tailcfg.MapResponse.PacketFilters] and [tailcfg.MapResponse.SSHPolicy] - always sent together
+	IncludeTKA     bool // [tailcfg.MapResponse.TKAInfo] - Tailnet Lock head/disabled
 
 	// Peer changes.
 	PeersChanged []types.NodeID
@@ -60,6 +61,7 @@ func (r Change) boolFieldNames() []string {
 		"IncludeDNS",
 		"IncludeDomain",
 		"IncludePolicy",
+		"IncludeTKA",
 		"SendAllPeers",
 		"RequiresRuntimePeerComputation",
 	}
@@ -73,6 +75,7 @@ func (r Change) Merge(other Change) Change {
 	merged.IncludeDNS = r.IncludeDNS || other.IncludeDNS
 	merged.IncludeDomain = r.IncludeDomain || other.IncludeDomain
 	merged.IncludePolicy = r.IncludePolicy || other.IncludePolicy
+	merged.IncludeTKA = r.IncludeTKA || other.IncludeTKA
 	merged.SendAllPeers = r.SendAllPeers || other.SendAllPeers
 	merged.RequiresRuntimePeerComputation = r.RequiresRuntimePeerComputation || other.RequiresRuntimePeerComputation
 
@@ -125,7 +128,7 @@ func (r Change) Merge(other Change) Change {
 
 func (r Change) IsEmpty() bool {
 	if r.IncludeSelf || r.IncludeDERPMap || r.IncludeDNS ||
-		r.IncludeDomain || r.IncludePolicy || r.SendAllPeers {
+		r.IncludeDomain || r.IncludePolicy || r.IncludeTKA || r.SendAllPeers {
 		return false
 	}
 
@@ -299,6 +302,7 @@ func FullUpdate() Change {
 		IncludeDNS:     true,
 		IncludeDomain:  true,
 		IncludePolicy:  true,
+		IncludeTKA:     true,
 		SendAllPeers:   true,
 	}
 }
@@ -313,6 +317,7 @@ func FullSelf(nodeID types.NodeID) Change {
 		IncludeDNS:     true,
 		IncludeDomain:  true,
 		IncludePolicy:  true,
+		IncludeTKA:     true,
 		SendAllPeers:   true,
 	}
 }
@@ -384,6 +389,14 @@ func PolicyChange() Change {
 		Reason:                         "policy change",
 		IncludePolicy:                  true,
 		RequiresRuntimePeerComputation: true,
+	}
+}
+
+// TKAChanged reports a new Tailnet Lock head (or disablement) to every node.
+func TKAChanged() Change {
+	return Change{
+		Reason:     "tailnet lock change",
+		IncludeTKA: true,
 	}
 }
 

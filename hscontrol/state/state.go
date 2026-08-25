@@ -38,6 +38,7 @@ import (
 	"gorm.io/gorm"
 	"tailscale.com/tailcfg"
 	"tailscale.com/types/key"
+	"tailscale.com/types/tkatype"
 	"tailscale.com/types/views"
 	"tailscale.com/util/dnsname"
 )
@@ -107,6 +108,8 @@ var nodeUpdateColumns = []string{
 	"Expiry",
 	"LastSeen",
 	"ApprovedRoutes",
+	"NodeKeySignature",
+	"NLKey",
 	"UpdatedAt",
 }
 
@@ -163,6 +166,9 @@ type State struct {
 
 	// pings tracks pending ping requests and their response channels.
 	pings *pingTracker
+
+	// tka holds Tailnet Lock state: the AUM chain and its authority.
+	tka *tkaStore
 
 	// sshCheckAuth tracks when source nodes last completed SSH check auth.
 	//
@@ -277,6 +283,11 @@ func NewState(cfg *types.Config) (*State, error) {
 	)
 	nodeStore.Start()
 
+	tkaStore, err := loadTKAStore(db)
+	if err != nil {
+		return nil, fmt.Errorf("loading tailnet lock state: %w", err)
+	}
+
 	s := &State{
 		cfg: cfg,
 
@@ -286,6 +297,7 @@ func NewState(cfg *types.Config) (*State, error) {
 		authCache: authCache,
 		nodeStore: nodeStore,
 		pings:     newPingTracker(),
+		tka:       tkaStore,
 
 		sshCheckAuth:  make(map[sshCheckPair]time.Time),
 		registerLocks: xsync.NewMap[key.MachinePublic, *sync.Mutex](),
@@ -1655,6 +1667,11 @@ type newNodeParams struct {
 	Expiry         *time.Time
 	RegisterMethod string
 
+	// Tailnet Lock: the node's own rotation key and, if it arrived signed,
+	// its node-key signature.
+	NLKey            key.NLPublic
+	NodeKeySignature tkatype.MarshaledSignature
+
 	// Optional: Pre-auth key specific fields
 	PreAuthKey *types.PreAuthKey
 
@@ -1748,6 +1765,10 @@ func (s *State) applyAuthNodeUpdate(params authNodeUpdateParams) (types.NodeView
 	updatedNodeView, ok := s.nodeStore.UpdateNode(params.ExistingNode.ID(), func(node *types.Node) {
 		node.NodeKey = regData.NodeKey
 		node.DiscoKey = regData.DiscoKey
+
+		// The node key and the signature over it must always change together.
+		applyTKARegistration(node, regData.NLKey, regData.NodeKeySignature)
+
 		node.Hostname = params.Hostname
 
 		// Preserve NetInfo from existing node when re-registering
@@ -1923,6 +1944,9 @@ func (s *State) createAndSaveNewNode(params newNodeParams) (types.NodeView, erro
 		IsOnline:       new(false), // Explicitly offline until [State.Connect] is called
 		RegisterMethod: params.RegisterMethod,
 		Expiry:         params.Expiry,
+
+		NLKey:            params.NLKey,
+		NodeKeySignature: params.NodeKeySignature,
 	}
 
 	// Assign ownership based on PreAuthKey
@@ -2381,6 +2405,8 @@ func (s *State) createNewNodeFromAuth(
 		MachineKey:             regData.MachineKey,
 		NodeKey:                regData.NodeKey,
 		DiscoKey:               regData.DiscoKey,
+		NLKey:                  regData.NLKey,
+		NodeKeySignature:       regData.NodeKeySignature,
 		Hostname:               hostname,
 		Hostinfo:               validHostinfo,
 		Endpoints:              regData.Endpoints,
@@ -2613,6 +2639,9 @@ func (s *State) HandleNodeFromPreAuthKey(
 			node.NodeKey = regReq.NodeKey
 			node.Hostname = hostname
 
+			// The node key and the signature over it must always change together.
+			applyTKARegistration(node, regReq.NLKey, regReq.NodeKeySignature)
+
 			// TODO(kradalby): We should ensure we use the same hostinfo and node merge semantics
 			// when a node re-registers as we do when it sends a map request (UpdateNodeFromMapRequest).
 
@@ -2809,6 +2838,8 @@ func (s *State) HandleNodeFromPreAuthKey(
 			MachineKey:             machineKey,
 			NodeKey:                regReq.NodeKey,
 			DiscoKey:               key.DiscoPublic{}, // DiscoKey not available in RegisterRequest
+			NLKey:                  regReq.NLKey,
+			NodeKeySignature:       regReq.NodeKeySignature,
 			Hostname:               hostname,
 			Hostinfo:               validHostinfo,
 			Endpoints:              nil, // Endpoints not available in RegisterRequest

@@ -127,6 +127,30 @@ func (h *Headscale) handleRegister(
 		return h.waitForFollowup(ctx, req, machineKey)
 	}
 
+	// Tailnet Lock: a rotated node key invalidates the stored signature. Hand
+	// the old one back so the client can re-sign it (tka.ResignNKS) and retry;
+	// the client's mustRegen branch triggers purely on this field being set,
+	// so only send it when it is genuinely needed or the client loops.
+	if h.state.TKAEnabled() {
+		if len(req.NodeKeySignature) > 0 {
+			err := h.state.TKAVerifyNodeKeySignature(req.NodeKey, req.NodeKeySignature)
+			if err != nil {
+				return nil, NewHTTPError(http.StatusBadRequest, "invalid node-key signature", err)
+			}
+		} else {
+			prev := req.OldNodeKey
+			if prev.IsZero() {
+				prev = req.NodeKey
+			}
+
+			if node, ok := h.state.GetNodeByNodeKey(prev); ok {
+				if old, needs := h.state.TKASignatureNeedsRotation(node, req.NodeKey); needs {
+					return &tailcfg.RegisterResponse{NodeKeySignature: old}, nil
+				}
+			}
+		}
+	}
+
 	// Pre authenticated keys are handled slightly different than interactive
 	// logins as they can be done fully sync and we can respond to the node with
 	// the result as it is waiting.
@@ -395,10 +419,12 @@ func registrationDataFromRequest(
 	}
 
 	regData := &types.RegistrationData{
-		MachineKey: machineKey,
-		NodeKey:    req.NodeKey,
-		Hostname:   hostname,
-		Hostinfo:   req.Hostinfo,
+		MachineKey:       machineKey,
+		NodeKey:          req.NodeKey,
+		Hostname:         hostname,
+		Hostinfo:         req.Hostinfo,
+		NLKey:            req.NLKey,
+		NodeKeySignature: req.NodeKeySignature,
 	}
 
 	if !req.Expiry.IsZero() {

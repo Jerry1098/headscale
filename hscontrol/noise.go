@@ -172,6 +172,17 @@ func (h *Headscale) NoiseUpgradeHandler(
 		// SSH Check mode endpoint, consulted to validate if a given SSH connection should be accepted or rejected.
 		r.Get("/ssh/action/{src_node_id}/to/{dst_node_id}", ns.SSHActionHandler)
 
+		// Tailnet Lock. These are GET requests carrying a JSON body — that is
+		// how the client issues them (ipn/ipnlocal/tailnet-lock.go), not a typo.
+		r.Get("/tka/init/begin", ns.TKAInitBeginHandler)
+		r.Get("/tka/init/finish", ns.TKAInitFinishHandler)
+		r.Get("/tka/bootstrap", ns.TKABootstrapHandler)
+		r.Get("/tka/sync/offer", ns.TKASyncOfferHandler)
+		r.Get("/tka/sync/send", ns.TKASyncSendHandler)
+		r.Get("/tka/sign", ns.TKASignHandler)
+		r.Get("/tka/affected-sigs", ns.TKAAffectedSigsHandler)
+		r.Get("/tka/disable", ns.TKADisableHandler)
+
 		// Not implemented yet
 		//
 		// /whoami is a debug endpoint to validate that the client can communicate over the connection,
@@ -706,7 +717,7 @@ func (ns *noiseServer) PollNetMapHandler(
 		return
 	}
 
-	nv, err := ns.getAndValidateNode(mapRequest)
+	nv, err := ns.getAndValidateNode(mapRequest.NodeKey)
 	if err != nil {
 		httpError(writer, err)
 		return
@@ -783,10 +794,12 @@ func (ns *noiseServer) RegistrationHandler(
 	}
 }
 
-// getAndValidateNode retrieves the node from the database using the NodeKey
-// and validates that it matches the MachineKey from the Noise session.
-func (ns *noiseServer) getAndValidateNode(mapRequest tailcfg.MapRequest) (types.NodeView, error) {
-	nv, ok := ns.headscale.state.GetNodeByNodeKey(mapRequest.NodeKey)
+// getAndValidateNode retrieves the node using nodeKey and validates that it
+// matches the MachineKey from the Noise session. Every /machine endpoint that
+// acts on a node must go through here: the Noise handshake accepts any machine
+// key without checking registration.
+func (ns *noiseServer) getAndValidateNode(nodeKey key.NodePublic) (types.NodeView, error) {
+	nv, ok := ns.headscale.state.GetNodeByNodeKey(nodeKey)
 	if !ok {
 		return types.NodeView{}, NewHTTPError(http.StatusNotFound, "node not found", nil)
 	}
